@@ -1,6 +1,48 @@
+/**
+ * @OnlyCurrentDoc
+ *
+ * The above comment directs Apps Script to limit the scope of file
+ * access for this add-on. It specifies that this add-on will only
+ * attempt to read or modify the files in which the add-on is used,
+ * and not all of the user's files. The authorization request message
+ * presented to users will reflect this limited scope.
+ */
+
+/**
+ * Creates a menu entry in the Google Docs UI when the document is opened.
+ * This method is only used by the regular add-on, and is never called by
+ * the mobile add-on version.
+ *
+ * @param {object} e The event parameter for a simple onOpen trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode.
+ */
+function onOpen(e) {
+  DocumentApp.getUi().createAddonMenu()
+      .addItem('Convert to markdown', 'ConvertToMarkdown')
+      .addToUi();
+}
+
+
+/**
+ * Runs when the add-on is installed.
+ * This method is only used by the regular add-on, and is never called by
+ * the mobile add-on version.
+ *
+ * @param {object} e The event parameter for a simple onInstall trigger. To
+ *     determine which authorization mode (ScriptApp.AuthMode) the trigger is
+ *     running in, inspect e.authMode. (In practice, onInstall triggers always
+ *     run in AuthMode.FULL, but onOpen triggers may be AuthMode.LIMITED or
+ *     AuthMode.NONE.)
+ */
+function onInstall(e) {
+  onOpen(e);
+}
+
+
 /*
-Usage: 
-  Adding this script to your doc: 
+Usage:
+  Adding this script to your doc:
     - Tools > Script Manager > New
     - Select "Blank Project", then paste this code in and save.
   Running the script:
@@ -19,9 +61,9 @@ function ConvertToMarkdown() {
   var globalListCounters = {};
   // edbacher: added a variable for indent in src <pre> block. Let style sheet do margin.
   var srcIndent = "";
-  
+
   var attachments = [];
-  
+
   // Walk through all the child elements of the doc.
   for (var i = 0; i < numChildren; i++) {
     var child = DocumentApp.getActiveDocument().getActiveSection().getChild(i);
@@ -53,7 +95,7 @@ function ConvertToMarkdown() {
       } else if (result.text && result.text.length>0) {
         text+=result.text+"\n\n";
       }
-      
+
       if (result.images && result.images.length>0) {
         for (var j=0; j<result.images.length; j++) {
           attachments.push( {
@@ -65,13 +107,13 @@ function ConvertToMarkdown() {
     } else if (inSrc) { // support empty lines inside source code
       text+='\n';
     }
-      
+
   }
-  
+
   attachments.push({"fileName":DocumentApp.getActiveDocument().getName()+".md", "mimeType": "text/plain", "content": text});
-  
-  MailApp.sendEmail(Session.getActiveUser().getEmail(), 
-                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(), 
+
+  MailApp.sendEmail(Session.getActiveUser().getEmail(),
+                    "[MARKDOWN_MAKER] "+DocumentApp.getActiveDocument().getName(),
                     "Your converted markdown document is attached (converted from "+DocumentApp.getActiveDocument().getUrl()+")"+
                     "\n\nDon't know how to use the format options? See http://github.com/mangini/gdocs2md\n",
                     { "attachments": attachments });
@@ -86,20 +128,20 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   // First, check for things that require no processing.
   if (element.getNumChildren()==0) {
     return null;
-  }  
+  }
   // Punt on TOC.
   if (element.getType() === DocumentApp.ElementType.TABLE_OF_CONTENTS) {
     return {"text": "[[TOC]]"};
   }
-  
+
   // Set up for real results.
   var result = {};
   var pOut = "";
   var textElements = [];
   var imagePrefix = "image_";
-  
+
   // Handle Table elements. Pretty simple-minded now, but works for simple tables.
-  // Note that Markdown does not process within block-level HTML, so it probably 
+  // Note that Markdown does not process within block-level HTML, so it probably
   // doesn't make sense to add markup within tables.
   if (element.getType() === DocumentApp.ElementType.TABLE) {
     textElements.push("<table>\n");
@@ -114,11 +156,11 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     }
     textElements.push("</table>\n");
   }
-  
+
   // Process various types (ElementType).
   for (var i = 0; i < element.getNumChildren(); i++) {
     var t=element.getChild(i).getType();
-    
+
     if (t === DocumentApp.ElementType.TABLE_ROW) {
       // do nothing: already handled TABLE_ROW
     } else if (t === DocumentApp.ElementType.TEXT) {
@@ -142,8 +184,8 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
       imageCounter++;
       textElements.push('![image alt text]('+name+')');
       result.images.push( {
-        "bytes": element.getChild(i).getBlob().getBytes(), 
-        "type": contentType, 
+        "bytes": element.getChild(i).getBlob().getBytes(),
+        "type": contentType,
         "name": name});
     } else if (t === DocumentApp.ElementType.PAGE_BREAK) {
       // ignore
@@ -161,7 +203,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
     // Isn't result empty now?
     return result;
   }
-  
+
   // evb: Add source pretty too. (And abbreviations: src and srcp.)
   // process source code block:
   if (/^\s*---\s+srcp\s*$/.test(pOut) || /^\s*---\s+source pretty\s*$/.test(pOut)) {
@@ -178,7 +220,7 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
   } else {
 
     prefix = findPrefix(inSrc, element, listCounters);
-  
+
     var pOut = "";
     for (var i=0; i<textElements.length; i++) {
       pOut += processTextElement(inSrc, textElements[i]);
@@ -186,10 +228,10 @@ function processParagraph(index, element, inSrc, imageCounter, listCounters) {
 
     // replace Unicode quotation marks
     pOut = pOut.replace('\u201d', '"').replace('\u201c', '"');
- 
+
     result.text = prefix+pOut;
   }
-  
+
   return result;
 }
 
@@ -238,12 +280,12 @@ function processTextElement(inSrc, txt) {
   if (typeof(txt) === 'string') {
     return txt;
   }
-  
+
   var pOut = txt.getText();
   if (! txt.getTextAttributeIndices) {
     return pOut;
   }
-  
+
   var attrs=txt.getTextAttributeIndices();
   var lastOff=pOut.length;
 

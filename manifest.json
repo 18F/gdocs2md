@@ -1,0 +1,14 @@
+{
+  // Required
+  "app": {
+    "background": {
+    }
+  },
+  "manifest_version": 2,
+  "name": "gdocs2md",
+  "version": "1.0.1",
+  "default_locale": "en",
+  "description": "An Add-on that converts Google Docs to markdown.",
+  "icons": { "16": "18F-Logo-16.png", "128": "18F-Logo-128.png" },
+  "author": "Brian Hedberg"
+}
